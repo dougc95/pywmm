@@ -1,13 +1,13 @@
 import math
 import numpy as np
 from .coefficients import read_coefficients
-from .geomag import calculate_geomagnetic
+from .calculator import calculate_geomagnetic
 
 class WMMv2:
     def __init__(self):
         self.maxdeg = 12
         self.maxord = self.maxdeg
-        self.defaultDate = 2020.0
+        self.defaultDate = 2025.0
 
         # Magnetic field outputs (nT and degrees)
         self.dec = 0.0   # declination
@@ -60,13 +60,9 @@ class WMMv2:
         self.start()
 
     def set_coefficients_file(self, file_path):
-        """
-        Set a new file path for the WMM coefficients.
-        """
         self.coeff_file = file_path
 
     def read_coefficients(self):
-        # Reads coefficients using the dedicated function.
         read_coefficients(self)
 
     def start(self):

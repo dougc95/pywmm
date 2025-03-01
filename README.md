@@ -8,6 +8,6 @@ This package computes geomagnetic field components using the World Magnetic Mode
 from pywmm import WMMv2
 
 wmm = WMMv2()
-declination = wmm.get_declination(34.0, -118.0, 2020, 0)
+declination = wmm.get_declination(34.0, -118.0, 2025, 0)
 print("Declination:", declination)
 ```
