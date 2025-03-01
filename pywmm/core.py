@@ -3,14 +3,6 @@ import math
 import numpy as np
 
 class WMMv2:
-    _instance = None
-
-    @classmethod
-    def _get_instance(cls):
-        if cls._instance is None:
-            cls._instance = cls()
-        return cls._instance
-
     def __init__(self):
         # Model configuration (unchanged from old.py)
         self.maxdeg = 12
@@ -62,17 +54,14 @@ class WMMv2:
         self.ca = 0.0
         self.sa = 0.0
 
-        # Load coefficients and perform normalization (unchanged logic)
+        # Initialize coefficients and normalization
         self.start()
 
-    def start(self):
-        # Initialization as in old.py
-        self.maxord = self.maxdeg
-        self.sp[0] = 0.0
-        self.cp[0] = self.snorm[0] = self.pp[0] = 1.0
-        self.dp[0][0] = 0.0
-
-        # Read WMM.COF from the package data directory
+    def read_coefficients(self):
+        """
+        Read the WMM coefficients from the coefficient file.
+        Override this method to change the behavior of coefficient loading.
+        """
         file_path = os.path.join(os.path.dirname(__file__), "data", "WMM.COF")
         with open(file_path, "r") as f:
             for line in f:
@@ -95,6 +84,16 @@ class WMMv2:
                         if m != 0:
                             self.c[n][m - 1] = hnm
                             self.cd[n][m - 1] = dhnm
+
+    def start(self):
+        # Initialization as in old.py
+        self.maxord = self.maxdeg
+        self.sp[0] = 0.0
+        self.cp[0] = self.snorm[0] = self.pp[0] = 1.0
+        self.dp[0][0] = 0.0
+
+        # Read coefficients via a separate function
+        self.read_coefficients()
 
         # Schmidt normalization factors (unchanged)
         self.snorm[0] = 1.0
@@ -124,7 +123,7 @@ class WMMv2:
         self.otime = self.oalt = self.olat = self.olon = -1000.0
 
     def _calculate_geomag(self, fLat, fLon, year, altitude=0):
-        # This method contains the same mathematical logic as in your original implementation.
+        # Compute the geomagnetic field components using the same logic as in your original code.
         self.glat = fLat
         self.glon = fLon
         self.alt = altitude
@@ -145,7 +144,7 @@ class WMMv2:
         self.sp[1] = srlon
         self.cp[1] = crlon
 
-        # Convert geodetic to spherical coordinates (only recalc if lat/alt changed)
+        # Convert geodetic to spherical coordinates (recalculate only if lat/alt changed)
         if altitude != self.oalt or fLat != self.olat:
             q = math.sqrt(self.a2 - self.c2 * srlat2)
             q1 = altitude * q
@@ -249,44 +248,30 @@ class WMMv2:
         self.olat = fLat
         self.olon = fLon
 
-    @classmethod
-    def get_declination(cls, dLat, dLong, year, altitude):
-        inst = cls._get_instance()
-        inst._calculate_geomag(dLat, dLong, year, altitude)
-        return inst.dec
+    def get_declination(self, dLat, dLong, year, altitude):
+        self._calculate_geomag(dLat, dLong, year, altitude)
+        return self.dec
 
-    @classmethod
-    def get_dip_angle(cls, dLat, dLong, year, altitude):
-        inst = cls._get_instance()
-        inst._calculate_geomag(dLat, dLong, year, altitude)
-        return inst.dip
+    def get_dip_angle(self, dLat, dLong, year, altitude):
+        self._calculate_geomag(dLat, dLong, year, altitude)
+        return self.dip
 
-    @classmethod
-    def get_intensity(cls, dLat, dLong, year, altitude):
-        inst = cls._get_instance()
-        inst._calculate_geomag(dLat, dLong, year, altitude)
-        return inst.ti
+    def get_intensity(self, dLat, dLong, year, altitude):
+        self._calculate_geomag(dLat, dLong, year, altitude)
+        return self.ti
 
-    @classmethod
-    def get_horizontal_intensity(cls, dLat, dLong, year, altitude):
-        inst = cls._get_instance()
-        inst._calculate_geomag(dLat, dLong, year, altitude)
-        return inst.bh
+    def get_horizontal_intensity(self, dLat, dLong, year, altitude):
+        self._calculate_geomag(dLat, dLong, year, altitude)
+        return self.bh
 
-    @classmethod
-    def get_north_intensity(cls, dLat, dLong, year, altitude):
-        inst = cls._get_instance()
-        inst._calculate_geomag(dLat, dLong, year, altitude)
-        return inst.bx
+    def get_north_intensity(self, dLat, dLong, year, altitude):
+        self._calculate_geomag(dLat, dLong, year, altitude)
+        return self.bx
 
-    @classmethod
-    def get_east_intensity(cls, dLat, dLong, year, altitude):
-        inst = cls._get_instance()
-        inst._calculate_geomag(dLat, dLong, year, altitude)
-        return inst.by
+    def get_east_intensity(self, dLat, dLong, year, altitude):
+        self._calculate_geomag(dLat, dLong, year, altitude)
+        return self.by
 
-    @classmethod
-    def get_vertical_intensity(cls, dLat, dLong, year, altitude):
-        inst = cls._get_instance()
-        inst._calculate_geomag(dLat, dLong, year, altitude)
-        return inst.bz
+    def get_vertical_intensity(self, dLat, dLong, year, altitude):
+        self._calculate_geomag(dLat, dLong, year, altitude)
+        return self.bz
