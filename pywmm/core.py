@@ -1,10 +1,10 @@
-import os
 import math
 import numpy as np
+from .coefficients import read_coefficients
+from .geomag import calculate_geomagnetic
 
 class WMMv2:
     def __init__(self):
-        # Model configuration (unchanged from old.py)
         self.maxdeg = 12
         self.maxord = self.maxdeg
         self.defaultDate = 2020.0
@@ -22,7 +22,7 @@ class WMMv2:
         self.epoch = 0.0
         self.otime = self.oalt = self.olat = self.olon = -1000.0
 
-        # WGS-84/IAU constants (unchanged)
+        # WGS-84/IAU constants
         self.a = 6378.137
         self.b = 6356.7523142
         self.re = 6371.2
@@ -33,7 +33,7 @@ class WMMv2:
         self.b4 = self.b2 * self.b2
         self.c4 = self.a4 - self.b4
 
-        # Allocate arrays as in old.py
+        # Allocate arrays
         self.c    = [[0.0 for _ in range(13)] for _ in range(13)]
         self.cd   = [[0.0 for _ in range(13)] for _ in range(13)]
         self.tc   = [[0.0 for _ in range(13)] for _ in range(13)]
@@ -54,39 +54,13 @@ class WMMv2:
         self.ca = 0.0
         self.sa = 0.0
 
-        # Initialize coefficients and normalization
         self.start()
 
     def read_coefficients(self):
-        """
-        Read the WMM coefficients from the coefficient file.
-        Override this method to change the behavior of coefficient loading.
-        """
-        file_path = os.path.join(os.path.dirname(__file__), "data", "WMM.COF")
-        with open(file_path, "r") as f:
-            for line in f:
-                parts = line.split()
-                if len(parts) == 1:
-                    break
-                if len(parts) == 3:
-                    self.epoch = float(parts[0])
-                    self.defaultDate = self.epoch + 2.5
-                else:
-                    n = int(parts[0])
-                    m = int(parts[1])
-                    gnm = float(parts[2])
-                    hnm = float(parts[3])
-                    dgnm = float(parts[4])
-                    dhnm = float(parts[5])
-                    if m <= n:
-                        self.c[m][n] = gnm
-                        self.cd[m][n] = dgnm
-                        if m != 0:
-                            self.c[n][m - 1] = hnm
-                            self.cd[n][m - 1] = dhnm
+        # This method can be overridden by the user.
+        read_coefficients(self)
 
     def start(self):
-        # Initialization as in old.py
         self.maxord = self.maxdeg
         self.sp[0] = 0.0
         self.cp[0] = self.snorm[0] = self.pp[0] = 1.0
@@ -95,7 +69,7 @@ class WMMv2:
         # Read coefficients via a separate function
         self.read_coefficients()
 
-        # Schmidt normalization factors (unchanged)
+        # Schmidt normalization factors
         self.snorm[0] = 1.0
         n = 1
         while n <= self.maxord:
@@ -122,156 +96,30 @@ class WMMv2:
         self.k[1][1] = 0.0
         self.otime = self.oalt = self.olat = self.olon = -1000.0
 
-    def _calculate_geomag(self, fLat, fLon, year, altitude=0):
-        # Compute the geomagnetic field components using the same logic as in your original code.
-        self.glat = fLat
-        self.glon = fLon
-        self.alt = altitude
-        self.time = year
-
-        dt = self.time - self.epoch
-        pi = math.pi
-        dtr = pi / 180.0
-        rlon = self.glon * dtr
-        rlat = self.glat * dtr
-        srlon = math.sin(rlon)
-        srlat = math.sin(rlat)
-        crlon = math.cos(rlon)
-        crlat = math.cos(rlat)
-        srlat2 = srlat * srlat
-        crlat2 = crlat * crlat
-
-        self.sp[1] = srlon
-        self.cp[1] = crlon
-
-        # Convert geodetic to spherical coordinates (recalculate only if lat/alt changed)
-        if altitude != self.oalt or fLat != self.olat:
-            q = math.sqrt(self.a2 - self.c2 * srlat2)
-            q1 = altitude * q
-            q2 = ((q1 + self.a2) / (q1 + self.b2)) ** 2
-            ct = srlat / math.sqrt(q2 * crlat2 + srlat2)
-            st = math.sqrt(1.0 - ct * ct)
-            r2 = altitude * altitude + 2.0 * q1 + (self.a4 - self.c4 * srlat2) / (q * q)
-            r = math.sqrt(r2)
-            d = math.sqrt(self.a2 * crlat2 + self.b2 * srlat2)
-            ca = (altitude + d) / r
-            sa = self.c2 * crlat * srlat / (r * d)
-            self.ct = ct
-            self.st = st
-            self.r  = r
-            self.d  = d
-            self.ca = ca
-            self.sa = sa
-        else:
-            ct = self.ct
-            st = self.st
-            r  = self.r
-            d  = self.d
-            ca = self.ca
-            sa = self.sa
-
-        if fLon != self.olon:
-            m = 2
-            while m <= self.maxord:
-                self.sp[m] = self.sp[1] * self.cp[m - 1] + self.cp[1] * self.sp[m - 1]
-                self.cp[m] = self.cp[1] * self.cp[m - 1] - self.sp[1] * self.sp[m - 1]
-                m = m + 1
-
-        aor = self.re / r
-        ar = aor * aor
-        br = 0.0
-        bt = 0.0
-        bp = 0.0
-        bpp = 0.0
-
-        n = 1
-        while n <= self.maxord:
-            ar = ar * aor
-            m = 0
-            D1 = 1
-            D2 = (n + m + D1) / D1
-            while D2 > 0:
-                if altitude != self.oalt or fLat != self.olat:
-                    if n == m:
-                        self.snorm[n + m * 13] = st * self.snorm[n - 1 + (m - 1) * 13]
-                        self.dp[m][n] = st * self.dp[m - 1][n - 1] + ct * self.snorm[n - 1 + (m - 1) * 13]
-                    if n == 1 and m == 0:
-                        self.snorm[n + m * 13] = ct * self.snorm[n - 1 + m * 13]
-                        self.dp[m][n] = ct * self.dp[m][n - 1] - st * self.snorm[n - 1 + m * 13]
-                    if n > 1 and n != m:
-                        if m > n - 2:
-                            self.snorm[n - 2 + m * 13] = 0.0
-                            self.dp[m][n - 2] = 0.0
-                        self.snorm[n + m * 13] = ct * self.snorm[n - 1 + m * 13] - self.k[m][n] * self.snorm[n - 2 + m * 13]
-                        self.dp[m][n] = ct * self.dp[m][n - 1] - st * self.snorm[n - 1 + m * 13] - self.k[m][n] * self.dp[m][n - 2]
-                self.tc[m][n] = self.c[m][n] + dt * self.cd[m][n]
-                if m != 0:
-                    self.tc[n][m - 1] = self.c[n][m - 1] + dt * self.cd[n][m - 1]
-                par = ar * self.snorm[n + m * 13]
-                if m == 0:
-                    temp1 = self.tc[m][n] * self.cp[m]
-                    temp2 = self.tc[m][n] * self.sp[m]
-                else:
-                    temp1 = self.tc[m][n] * self.cp[m] + self.tc[n][m - 1] * self.sp[m]
-                    temp2 = self.tc[m][n] * self.sp[m] - self.tc[n][m - 1] * self.cp[m]
-                bt = bt - ar * temp1 * self.dp[m][n]
-                bp = bp + self.fm[m] * temp2 * par
-                br = br + self.fn[n] * temp1 * par
-                if st == 0.0 and m == 1:
-                    if n == 1:
-                        self.pp[n] = self.pp[n - 1]
-                    else:
-                        self.pp[n] = ct * self.pp[n - 1] - self.k[m][n] * self.pp[n - 2]
-                    parp = ar * self.pp[n]
-                    bpp = bpp + self.fm[m] * temp2 * parp
-                D2 = D2 - 1
-                m = m + D1
-            n = n + 1
-
-        if st == 0.0:
-            bp = bpp
-        else:
-            bp = bp / st
-
-        self.bx = -bt * ca - br * sa
-        self.by = bp
-        self.bz = bt * sa - br * ca
-
-        self.bh = math.sqrt(self.bx * self.bx + self.by * self.by)
-        self.ti = math.sqrt(self.bh * self.bh + self.bz * self.bz)
-
-        self.dec = math.atan2(self.by, self.bx) / dtr
-        self.dip = math.atan2(self.bz, self.bh) / dtr
-
-        self.otime = self.time
-        self.oalt = altitude
-        self.olat = fLat
-        self.olon = fLon
-
     def get_declination(self, dLat, dLong, year, altitude):
-        self._calculate_geomag(dLat, dLong, year, altitude)
+        calculate_geomagnetic(self, dLat, dLong, year, altitude)
         return self.dec
 
     def get_dip_angle(self, dLat, dLong, year, altitude):
-        self._calculate_geomag(dLat, dLong, year, altitude)
+        calculate_geomagnetic(self, dLat, dLong, year, altitude)
         return self.dip
 
     def get_intensity(self, dLat, dLong, year, altitude):
-        self._calculate_geomag(dLat, dLong, year, altitude)
+        calculate_geomagnetic(self, dLat, dLong, year, altitude)
         return self.ti
 
     def get_horizontal_intensity(self, dLat, dLong, year, altitude):
-        self._calculate_geomag(dLat, dLong, year, altitude)
+        calculate_geomagnetic(self, dLat, dLong, year, altitude)
         return self.bh
 
     def get_north_intensity(self, dLat, dLong, year, altitude):
-        self._calculate_geomag(dLat, dLong, year, altitude)
+        calculate_geomagnetic(self, dLat, dLong, year, altitude)
         return self.bx
 
     def get_east_intensity(self, dLat, dLong, year, altitude):
-        self._calculate_geomag(dLat, dLong, year, altitude)
+        calculate_geomagnetic(self, dLat, dLong, year, altitude)
         return self.by
 
     def get_vertical_intensity(self, dLat, dLong, year, altitude):
-        self._calculate_geomag(dLat, dLong, year, altitude)
+        calculate_geomagnetic(self, dLat, dLong, year, altitude)
         return self.bz
