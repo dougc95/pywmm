@@ -2,10 +2,14 @@ import os
 
 def read_coefficients(instance):
     """
-    Read the WMM coefficients from the coefficient file and
-    load them into the given instance.
+    Read the WMM coefficients from a file.
+    
+    If the instance has set a custom 'coeff_file' attribute,
+    that file will be used. Otherwise, the default packaged file is used.
     """
-    file_path = os.path.join(os.path.dirname(__file__), "data", "WMM.COF")
+    file_path = getattr(instance, 'coeff_file', None)
+    if not file_path:
+        file_path = os.path.join(os.path.dirname(__file__), "data", "WMM.COF")
     with open(file_path, "r") as f:
         for line in f:
             parts = line.split()

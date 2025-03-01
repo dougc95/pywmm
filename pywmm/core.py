@@ -46,7 +46,7 @@ class WMMv2:
         self.pp   = np.zeros(13)
         self.k    = [[0.0 for _ in range(13)] for _ in range(13)]
 
-        # Variables used in the conversion from geodetic to spherical coordinates
+        # Variables for geodetic-to-spherical conversion
         self.ct = 0.0
         self.st = 0.0
         self.r  = 0.0
@@ -54,10 +54,19 @@ class WMMv2:
         self.ca = 0.0
         self.sa = 0.0
 
+        # Attribute for coefficients file; can be set by the user.
+        self.coeff_file = None
+
         self.start()
 
+    def set_coefficients_file(self, file_path):
+        """
+        Set a new file path for the WMM coefficients.
+        """
+        self.coeff_file = file_path
+
     def read_coefficients(self):
-        # This method can be overridden by the user.
+        # Reads coefficients using the dedicated function.
         read_coefficients(self)
 
     def start(self):
@@ -66,7 +75,7 @@ class WMMv2:
         self.cp[0] = self.snorm[0] = self.pp[0] = 1.0
         self.dp[0][0] = 0.0
 
-        # Read coefficients via a separate function
+        # Read coefficients using the (potentially overridden) method.
         self.read_coefficients()
 
         # Schmidt normalization factors
