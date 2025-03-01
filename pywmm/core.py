@@ -4,7 +4,10 @@ from .coefficients import read_coefficients
 from .calculator import calculate_geomagnetic
 
 class WMMv2:
-    def __init__(self):
+    def __init__(self, coeff_file=None):
+        # Allow the user to pass a custom coefficients file path.
+        self.coeff_file = coeff_file
+
         self.maxdeg = 12
         self.maxord = self.maxdeg
         self.defaultDate = 2025.0
@@ -54,13 +57,7 @@ class WMMv2:
         self.ca = 0.0
         self.sa = 0.0
 
-        # Attribute for coefficients file; can be set by the user.
-        self.coeff_file = None
-
         self.start()
-
-    def set_coefficients_file(self, file_path):
-        self.coeff_file = file_path
 
     def read_coefficients(self):
         read_coefficients(self)
@@ -71,7 +68,7 @@ class WMMv2:
         self.cp[0] = self.snorm[0] = self.pp[0] = 1.0
         self.dp[0][0] = 0.0
 
-        # Read coefficients using the (potentially overridden) method.
+        # Read coefficients (this will use self.coeff_file if it was provided)
         self.read_coefficients()
 
         # Schmidt normalization factors
