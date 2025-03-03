@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pywmm",
-    version="0.1.0",
+    version="0.2.1",
     description="World Magnetic Model (WMM) calculations",
     author="Douglas Rojas",
     author_email="dougcr95@gmail.com",
