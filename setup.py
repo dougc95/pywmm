@@ -6,10 +6,9 @@ setup(
     description="World Magnetic Model (WMM) calculations",
     author="Douglas Rojas",
     author_email="dougcr95@gmail.com",
-    packages=find_packages(),
-    include_package_data=True,
+    packages=find_packages(include=["pywmm", "pywmm.*"]),
     package_data={
-        "pywmm": ["data/WMM.COF"],
+        "pywmm.data": ["*.COF"],
     },
     install_requires=[
         "numpy",
