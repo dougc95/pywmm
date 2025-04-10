@@ -5,7 +5,7 @@ with open("README.md", encoding="utf-8") as f:
 
 setup(
     name="pywmm",
-    version="0.2.3",
+    version="1.0.0",
     description="World Magnetic Model (WMM) calculations in Python",
     long_description=long_description,
     long_description_content_type="text/markdown",
