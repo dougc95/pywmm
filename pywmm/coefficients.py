@@ -2,10 +2,42 @@ import os
 
 def read_coefficients(instance):
     """
-    Read the WMM coefficients from a file.
+    Read the World Magnetic Model (WMM) coefficients from a file and populate the instance variables.
     
-    If the instance has set a custom 'coeff_file' attribute,
-    that file will be used. Otherwise, the default packaged file is used.
+    This function reads spherical harmonic coefficients from a WMM coefficient file (.COF) and
+    assigns them to the appropriate arrays in the provided instance. The coefficient file follows
+    the standard format used by NOAA's National Centers for Environmental Information (NCEI).
+    
+    Parameters:
+        instance: An instance of WMMv2 or compatible model class that contains the following attributes:
+            - coeff_file (str, optional): Custom path to coefficient file
+            - epoch (float): Base epoch of the model (will be set from file)
+            - defaultDate (float): Default calculation date (will be set to epoch + 2.5 years)
+            - c (list): 2D array for Gauss coefficients (gnm, hnm)
+            - cd (list): 2D array for secular variation coefficients (dgnm, dhnm)
+    
+    Notes:
+        - If instance.coeff_file is not specified, the default WMM.COF file in the package's
+          data directory will be used.
+        - The file format is expected to contain:
+            * Header line with epoch year 
+            * Data lines with: n, m, gnm, hnm, dgnm, dhnm values
+                where:
+                - n: degree (int)
+                - m: order (int)
+                - gnm: Gauss coefficient (float, nT)
+                - hnm: Gauss coefficient (float, nT)
+                - dgnm: Annual rate of change (float, nT/year)
+                - dhnm: Annual rate of change (float, nT/year)
+        - Coefficients are stored in a specific arrangement in the instance arrays:
+            * c[m][n] stores gnm values
+            * c[n][m-1] stores hnm values (for m > 0)
+            * cd[m][n] stores dgnm values
+            * cd[n][m-1] stores dhnm values (for m > 0)
+    
+    Raises:
+        FileNotFoundError: If the coefficient file cannot be found
+        ValueError: If the coefficient file format is invalid
     """
     file_path = getattr(instance, 'coeff_file', None)
     if not file_path:
