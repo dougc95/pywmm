@@ -13,6 +13,8 @@ The World Magnetic Model (WMM) is the standard model used by the U.S. Department
 - Calculate total intensity of Earth's magnetic field
 - Calculate horizontal, north, east, and vertical components of the magnetic field
 - Support for custom coefficient files
+- Coefficient file validation and conversion
+- Support for loading coefficient data from byte streams (e.g., from HTTP requests)
 - Accurate calculations at any latitude, longitude, altitude, and date within the model's valid range
 
 ## Installation
@@ -88,6 +90,71 @@ wmm = WMMv2(coeff_file="/path/to/custom/WMM.COF")
 declination = wmm.get_declination(34.0, -118.0, 2025.0, 0)
 ```
 
+### Initializing from Byte Data
+
+```python
+from pywmm import WMMv2
+
+# Load coefficient data from bytes (e.g., from a HTTP response)
+with open("/path/to/downloaded/WMM.COF", "rb") as f:
+    coef_data = f.read()
+
+# Initialize directly from bytes
+wmm = WMMv2.from_bytes(coef_data)
+
+# Use the model as normal
+declination = wmm.get_declination(34.0, -118.0, 2025.0, 0)
+```
+
+### Working with Coefficient Files
+
+```python
+from pywmm.coefficients import validate_coefficient_file, convert_to_cof_format, replace_coefficient_file
+
+# Validate a coefficient file
+is_valid, error_message = validate_coefficient_file("/path/to/coefficient_file.txt")
+if is_valid:
+    print("File is valid")
+else:
+    print(f"File is invalid: {error_message}")
+
+# Convert a text file to proper COF format
+success, result = convert_to_cof_format("/path/to/raw_data.txt", "/path/to/output.COF")
+if success:
+    print(f"Conversion successful: {result}")
+else:
+    print(f"Conversion failed: {result}")
+
+# Replace the default coefficient file
+success, message = replace_coefficient_file("/path/to/new_coefficients.COF")
+if success:
+    print(f"Replacement successful: {message}")
+else:
+    print(f"Replacement failed: {message}")
+```
+
+### Updating Coefficients at Runtime
+
+```python
+from pywmm import WMMv2
+
+# Initialize the model with default coefficients
+wmm = WMMv2()
+
+# Later, update with new coefficient file
+success = wmm.update_coefficients(new_coeff_file="/path/to/new/WMM.COF")
+if success:
+    print("Coefficients updated successfully")
+
+# Or update with coefficient data from bytes
+with open("/path/to/downloaded/WMM.COF", "rb") as f:
+    coef_data = f.read()
+
+success = wmm.update_coefficients(new_coeff_data=coef_data)
+if success:
+    print("Coefficients updated from byte data")
+```
+
 ### Batch Processing with Date Range
 
 ```python
@@ -120,12 +187,13 @@ for date, dec in results:
 
 ### Main Class
 
-#### `WMMv2(coeff_file=None)`
+#### `WMMv2(coeff_file=None, coeff_data=None)`
 
 Initialize the World Magnetic Model.
 
 - **Parameters**:
   - `coeff_file` (str, optional): Path to a custom coefficient file. If None, the default WMM.COF file is used.
+  - `coeff_data` (bytes, optional): Coefficient data as bytes. If provided, this will be used instead of loading from a file.
 
 #### Methods
 
@@ -136,6 +204,45 @@ Initialize the World Magnetic Model.
 - **`get_north_intensity(latitude, longitude, year, altitude=0)`**: Calculate northward component in nT
 - **`get_east_intensity(latitude, longitude, year, altitude=0)`**: Calculate eastward component in nT
 - **`get_vertical_intensity(latitude, longitude, year, altitude=0)`**: Calculate downward component in nT
+- **`update_coefficients(new_coeff_file=None, new_coeff_data=None)`**: Update the model with new coefficient data
+- **`from_bytes(byte_data)`** (class method): Create a WMMv2 instance from byte data
+
+### Coefficient Handler Functions
+
+#### `validate_coefficient_file(file_path)`
+
+Validate that a file contains properly formatted WMM coefficients.
+
+- **Parameters**:
+  - `file_path` (str): Path to the coefficient file to validate
+- **Returns**: tuple(is_valid, error_message)
+
+#### `convert_to_cof_format(input_file_path, output_file_path=None)`
+
+Convert a text file with WMM coefficient data to the proper COF format.
+
+- **Parameters**:
+  - `input_file_path` (str): Path to the input text file
+  - `output_file_path` (str, optional): Path for the output COF file
+- **Returns**: tuple(success, file_path or error_message)
+
+#### `replace_coefficient_file(new_file_path, backup=True)`
+
+Replace the default WMM coefficient file with a new one.
+
+- **Parameters**:
+  - `new_file_path` (str): Path to the new coefficient file
+  - `backup` (bool): Whether to create a backup of the original file
+- **Returns**: tuple(success, message)
+
+#### `save_coefficients_from_request(request_data, output_file_path)`
+
+Save coefficient data from a HTTP request to a file.
+
+- **Parameters**:
+  - `request_data` (bytes): Raw byte data from the request body
+  - `output_file_path` (str): Path where to save the coefficient file
+- **Returns**: tuple(success, message)
 
 ### Utility Functions
 
@@ -168,6 +275,8 @@ The WMM is typically updated every 5 years, and each model is valid for a 5-year
 - Longitudes range from -180 to 180 (negative for West, positive for East)
 - Altitudes are in kilometers above the WGS-84 ellipsoid
 - Decimal years can be calculated using the provided `decimal_year()` utility function
+- Coefficient files must follow the standard WMM format with proper header and coefficient lines
+- When working with coefficient data from external sources, always validate the format before use
 
 ## License
 
