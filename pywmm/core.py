@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from .coefficients import read_coefficients
+from .coefficients import read_coefficients, read_coefficients_from_bytes
 from .calculator import calculate_geomagnetic
 
 class WMMv2:
@@ -25,16 +25,19 @@ class WMMv2:
         bh (float): Horizontal intensity of the magnetic field in nT.
     """
 
-    def __init__(self, coeff_file=None):
+    def __init__(self, coeff_file=None, coeff_data=None):
         """
         Initialize the WMMv2 model.
         
         Parameters:
             coeff_file (str, optional): Path to custom coefficients file. If None, default 
                                         coefficients will be used.
+            coeff_data (bytes, optional): Coefficient data as bytes. If provided, this will
+                                          be used instead of loading from a file.
         """
-        # Allow the user to pass a custom coefficients file path.
+        # Allow the user to pass a custom coefficients file path or byte data
         self.coeff_file = coeff_file
+        self.coeff_data = coeff_data
 
         self.maxdeg = 12
         self.maxord = self.maxdeg
@@ -89,12 +92,17 @@ class WMMv2:
 
     def read_coefficients(self):
         """
-        Read spherical harmonic coefficients from the coefficient file.
+        Read spherical harmonic coefficients from the coefficient file or data.
         
-        This method uses the external function read_coefficients from the coefficients module,
+        This method uses the external functions from the coefficients module,
         passing the current instance so the function can modify the object's properties.
         """
-        read_coefficients(self)
+        if self.coeff_data is not None:
+            # If coefficient data was provided as bytes, use that
+            read_coefficients_from_bytes(self, self.coeff_data)
+        else:
+            # Otherwise read from file
+            read_coefficients(self)
 
     def start(self):
         """
@@ -140,6 +148,50 @@ class WMMv2:
             n = n + 1
         self.k[1][1] = 0.0
         self.otime = self.oalt = self.olat = self.olon = -1000.0
+
+    def update_coefficients(self, new_coeff_file=None, new_coeff_data=None):
+        """
+        Update the model with new coefficient data.
+        
+        This method allows updating the model's coefficients without reinitializing
+        the entire object.
+        
+        Parameters:
+            new_coeff_file (str, optional): Path to new coefficient file
+            new_coeff_data (bytes, optional): New coefficient data as bytes
+            
+        Returns:
+            bool: True if update was successful, False otherwise
+        """
+        # Store original values in case update fails
+        original_file = self.coeff_file
+        original_data = self.coeff_data
+        
+        try:
+            # Update with new values
+            if new_coeff_file is not None:
+                self.coeff_file = new_coeff_file
+                self.coeff_data = None
+            elif new_coeff_data is not None:
+                self.coeff_data = new_coeff_data
+                self.coeff_file = None
+            else:
+                return False  # No new data provided
+            
+            # Reinitialize the model with new coefficients
+            self.read_coefficients()
+            
+            # Reset cache values to force recalculation
+            self.otime = self.oalt = self.olat = self.olon = -1000.0
+            
+            return True
+            
+        except Exception as e:
+            # Restore original values if update fails
+            self.coeff_file = original_file
+            self.coeff_data = original_data
+            print(f"Failed to update coefficients: {str(e)}")
+            return False
 
     def get_declination(self, dLat, dLong, year, altitude):
         """
@@ -260,3 +312,19 @@ class WMMv2:
         """
         calculate_geomagnetic(self, dLat, dLong, year, altitude)
         return self.bz
+
+    @classmethod
+    def from_bytes(cls, byte_data):
+        """
+        Create a WMMv2 instance from byte data.
+        
+        This is a convenience method for initializing a model directly from coefficient data
+        received via HTTP requests or other byte streams.
+        
+        Parameters:
+            byte_data (bytes): Coefficient data as bytes
+            
+        Returns:
+            WMMv2: Initialized WMMv2 instance
+        """
+        return cls(coeff_data=byte_data)
